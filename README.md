@@ -4,7 +4,7 @@
 
 - 仕様書: [docs/sts2-enemy-multiplier-mod-spec.md](docs/sts2-enemy-multiplier-mod-spec.md)
 
-## 現在の状態: v0.4.0
+## 現在の状態: v0.5.0
 
 敵に HP 倍率・攻撃力倍率を掛ける。幕(Act)ごと・敵の種類(通常敵 / エリート / ボス)ごとにも設定できる。倍率はゲーム内の MOD 設定画面(BaseLib)で変える。動作確認対象: ゲーム v0.111.0。
 
@@ -37,3 +37,10 @@ BaseLib はワークショップの購読先を参照する。別の場所にあ
 
 変更は次の戦闘から反映される。保存先は `user://mod_configs/SpireScaler.cfg`(Windows では `%APPDATA%\SlayTheSpire2\mod_configs\SpireScaler.cfg`)。
 適用結果はゲームログ(`%APPDATA%\SlayTheSpire2\logs\godot.log`)に `[SpireScaler]` で出力される。
+
+## マルチプレイ
+
+- 全員が同じバージョンの Spire Scaler(と BaseLib)を入れている必要がある。入れていない人・バージョンが違う人がいると、ゲーム本体の照合で参加できず、足りない MOD 名がポップアップに出る
+- 使う倍率はホストの設定。ホストがランを始めた時点の設定で固定され、参加者に送られる(参加者自身の設定は使わない)。ラン中に設定を変えても、そのランには反映されない
+- ホストは固定した設定を `user://SpireScaler/multiplayer_run.json` に保存するので、保存したマルチプレイのランを続きから遊んでも同じ値になる
+- シングルプレイは従来どおり、変更が次の戦闘から反映される
