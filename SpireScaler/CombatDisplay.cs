@@ -1,13 +1,13 @@
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Context;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 
 namespace SpireScaler;
 
 /// <summary>
-/// Spec 2.7: a small "HP×n / Attack×n" label just above the local player's health bar,
-/// showing the multipliers applied to the current combat. Toggled by ShowMultiplierDisplay.
+/// Spec 2.7: a small "HP×n / Attack×n" label just above each enemy's health bar (summons
+/// included), showing the multipliers applied to the current combat. Toggled by ShowMultiplierDisplay.
 /// The label is a child of the health bar, so it follows it and goes away with the creature node.
 /// </summary>
 [HarmonyPatch(typeof(NCreature), nameof(NCreature._Ready))]
@@ -19,8 +19,7 @@ public static class CombatDisplay
     public static void Postfix(NCreature __instance)
     {
         if (!SpireScalerConfig.ShowMultiplierDisplay
-            || __instance.Entity is not { IsPlayer: true } player
-            || !LocalContext.IsMe(player))
+            || __instance.Entity is not { IsEnemy: true, IsMonster: true } enemy)
         {
             return;
         }
@@ -52,17 +51,17 @@ public static class CombatDisplay
         label.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
         label.AddThemeConstantOverride("outline_size", 5);
         bar.AddChild(label);
-        SetText(label, player);
+        SetText(label, enemy);
         if (label.Text == "")
         {
-            // The player may join the combat state after its node is ready; try again next frame.
-            Callable.From(() => SetText(label, player)).CallDeferred();
+            // The creature may join the combat state after its node is ready; try again next frame.
+            Callable.From(() => SetText(label, enemy)).CallDeferred();
         }
     }
 
-    private static void SetText(Label label, MegaCrit.Sts2.Core.Entities.Creatures.Creature player)
+    private static void SetText(Label label, Creature creature)
     {
-        if (GodotObject.IsInstanceValid(label) && player.CombatState is { } combatState)
+        if (GodotObject.IsInstanceValid(label) && creature.CombatState is { } combatState)
         {
             label.Text = SpireScalerConfig.Labels.Current().Display(ModEntry.SettingsFor(combatState));
         }
