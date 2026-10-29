@@ -6,11 +6,13 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>SpireScaler</AssemblyName>
     <RootNamespace>SpireScaler</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2</GameDir>
     <GameDataDir>$(GameDir)\data_sts2_windows_x86_64</GameDataDir>
+    <!-- BaseLib from the Steam Workshop subscription; override if installed under mods\BaseLib. -->
+    <BaseLibDll Condition="'$(BaseLibDll)' == ''">$(GameDir)\..\..\workshop\content\2868840\3737335127\BaseLib\BaseLib.dll</BaseLibDll>
     <!-- Set to false to build without copying into the game's mods folder. -->
     <InstallToGame Condition="'$(InstallToGame)' == ''">true</InstallToGame>
   </PropertyGroup>
@@ -19,6 +21,7 @@
     <Reference Include="sts2" HintPath="$(GameDataDir)\sts2.dll" Private="false" />
     <Reference Include="0Harmony" HintPath="$(GameDataDir)\0Harmony.dll" Private="false" />
     <Reference Include="GodotSharp" HintPath="$(GameDataDir)\GodotSharp.dll" Private="false" />
+    <Reference Include="BaseLib" HintPath="$(BaseLibDll)" Private="false" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,11 +2,16 @@
   "id": "SpireScaler",
   "name": "Spire Scaler",
   "author": "7qvz-z",
-  "description": "Multiplies enemy HP and attack damage. Edit user://SpireScaler/config.cfg to change the multipliers.",
-  "version": "0.1.0",
+  "description": "Multiplies enemy HP and attack damage. Change the multipliers in the mod settings (requires BaseLib).",
+  "version": "0.2.0",
   "min_game_version": "0.111.0",
   "has_pck": false,
   "has_dll": true,
-  "dependencies": [],
+  "dependencies": [
+    {
+      "id": "BaseLib",
+      "min_version": "3.4.7"
+    }
+  ],
   "affects_gameplay": true
 }

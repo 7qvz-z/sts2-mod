@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using BaseLib.Config;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
@@ -8,9 +9,13 @@ using MegaCrit.Sts2.Core.Modding;
 
 namespace SpireScaler;
 
+/// <summary>Multipliers in effect for one combat.</summary>
+public sealed record MultiplierSettings(decimal HpMultiplier, decimal AttackMultiplier);
+
 [ModInitializer(nameof(Init))]
 public static class ModEntry
 {
+    public const string ModId = "SpireScaler";
     public const string HarmonyId = "com.7qvz-z.SpireScaler";
 
     // One settings snapshot per combat, taken when its first creature is created,
@@ -19,9 +24,10 @@ public static class ModEntry
 
     public static void Init()
     {
+        ModConfigRegistry.Register(ModId, new SpireScalerConfig());
         var harmony = new Harmony(HarmonyId);
         harmony.PatchAll(typeof(ModEntry).Assembly);
-        MultiplierSettings s = ModConfig.Load();
+        MultiplierSettings s = SpireScalerConfig.Snapshot();
         Log.Info($"[SpireScaler] Loaded. HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
     }
 
@@ -29,7 +35,7 @@ public static class ModEntry
     {
         return CombatSettings.GetValue(combatState, _ =>
         {
-            MultiplierSettings s = ModConfig.Load();
+            MultiplierSettings s = SpireScalerConfig.Snapshot();
             Log.Info($"[SpireScaler] New combat: HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
             return s;
         });
