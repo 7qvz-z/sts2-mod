@@ -18,25 +18,25 @@ public sealed class SpireScalerConfig : SimpleModConfig
     public const double NormalMax = 10.0;
     public const double AdvancedMin = 0.0;
     public const double AdvancedMax = 100.0;
-    public const double SliderStep = 0.01;
+    public const double SliderStep = 0.1;
 
     // Restore Defaults resets the multipliers only (spec 2.6), not the mode.
     [ConfigIgnoreRestoreDefaults]
     public static bool AdvancedMode { get; set; }
 
-    [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = "x{0:0.##}")]
+    [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = "x{0:0.#}")]
     public static double HpMultiplier { get; set; } = 1.0;
 
-    [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = "x{0:0.##}")]
+    [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = "x{0:0.#}")]
     public static double AttackMultiplier { get; set; } = 1.0;
 
     // Backing text for the numeric inputs; not saved, always derived from the values above.
     [ConfigIgnore]
-    [ConfigTextInput(@"[0-9]{0,3}(\.[0-9]{0,2})?", MaxLength = 6)]
+    [ConfigTextInput(@"[0-9]{0,3}(\.[0-9]?)?", MaxLength = 5)]
     public static string HpMultiplierInput { get; set; } = "1";
 
     [ConfigIgnore]
-    [ConfigTextInput(@"[0-9]{0,3}(\.[0-9]{0,2})?", MaxLength = 6)]
+    [ConfigTextInput(@"[0-9]{0,3}(\.[0-9]?)?", MaxLength = 5)]
     public static string AttackMultiplierInput { get; set; } = "1";
 
     public static double RangeMin => AdvancedMode ? AdvancedMin : NormalMin;
@@ -70,7 +70,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
         {
             return 1m;
         }
-        return Math.Round((decimal)Math.Clamp(value, AdvancedMin, AdvancedMax), 2);
+        return Math.Round((decimal)Math.Clamp(value, AdvancedMin, AdvancedMax), 1);
     }
 
     public override void SetupConfigUI(Control optionContainer)
@@ -180,7 +180,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
         {
             return 1.0;
         }
-        return Math.Round(Math.Clamp(value, RangeMin, RangeMax), 2);
+        return Math.Round(Math.Clamp(value, RangeMin, RangeMax), 1);
     }
 
     private static PropertyInfo Property(string name)
@@ -189,7 +189,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
             ?? throw new MissingMemberException(nameof(SpireScalerConfig), name);
     }
 
-    private static string Format(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+    private static string Format(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
 
     /// <summary>Keeps one multiplier's slider and numeric input in agreement.</summary>
     private sealed class MultiplierField
