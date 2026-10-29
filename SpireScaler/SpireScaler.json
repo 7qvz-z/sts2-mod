@@ -3,7 +3,7 @@
   "name": "Spire Scaler",
   "author": "7qvz-z",
   "description": "Multiplies enemy HP and attack damage. Change the multipliers in the mod settings (requires BaseLib).",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "min_game_version": "0.111.0",
   "has_pck": false,
   "has_dll": true,
