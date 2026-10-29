@@ -109,6 +109,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
     private readonly bool[] _lastCustom = new bool[ActCount + 1];
     private bool _lastAdvanced;
     private bool _syncing;
+    private Label? _presetNotice;
 
     public SpireScalerConfig()
     {
@@ -195,6 +196,17 @@ public sealed class SpireScalerConfig : SimpleModConfig
         {
             AddPresetRow(optionContainer, presets.ContentContainer, slot, t);
         }
+        _presetNotice = new Label
+        {
+            Name = "PresetNotice",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            CustomMinimumSize = new Vector2(0f, 48f),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Modulate = Colors.Transparent,
+        };
+        _presetNotice.AddThemeFontSizeOverride("font_size", 26);
+        _presetNotice.AddThemeColorOverride("font_color", new Color(0.55f, 0.9f, 0.55f));
+        presets.ContentContainer.AddChild(_presetNotice);
 
         AddRestoreDefaultsButton(optionContainer);
         SetupFocusNeighbors(optionContainer);
@@ -259,6 +271,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
         }
         string name = (string?)Property(PresetNameProperty(slot)).GetValue(null) ?? "";
         PresetStore.Set(slot, name, values);
+        ShowPresetNotice(Labels.Current().Saved(slot, name));
         Log.Info($"[SpireScaler] Saved preset {slot} \"{name}\"");
     }
 
@@ -267,6 +280,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
         IReadOnlyDictionary<string, string>? values = PresetStore.Get(slot);
         if (values == null)
         {
+            ShowPresetNotice(Labels.Current().Empty(slot));
             return;
         }
         RunSync(() =>
@@ -300,6 +314,21 @@ public sealed class SpireScalerConfig : SimpleModConfig
         });
         Save();
         Log.Info($"[SpireScaler] Loaded preset {slot} \"{PresetStore.GetName(slot)}\"");
+        ShowPresetNotice(Labels.Current().Loaded(slot, PresetStore.GetName(slot) ?? ""));
+    }
+
+    /// <summary>Shows a short message under the preset slots, then fades it out.</summary>
+    private void ShowPresetNotice(string text)
+    {
+        if (_presetNotice == null || !GodotObject.IsInstanceValid(_presetNotice))
+        {
+            return;
+        }
+        _presetNotice.Text = text;
+        _presetNotice.Modulate = Colors.White;
+        Tween tween = _presetNotice.CreateTween();
+        tween.TweenInterval(2.5);
+        tween.TweenProperty(_presetNotice, "modulate:a", 0.0, 0.6);
     }
 
     private MultiplierField Field(string valueName) => _fields.First(f => f.ValueProperty.Name == valueName);
@@ -530,6 +559,9 @@ public sealed class SpireScalerConfig : SimpleModConfig
         string SlotFormat,
         string Save,
         string Load,
+        string SavedFormat,
+        string LoadedFormat,
+        string EmptyFormat,
         string GlobalHp,
         string GlobalAttack,
         string ActFormat,
@@ -547,6 +579,9 @@ public sealed class SpireScalerConfig : SimpleModConfig
             "スロット{0}",
             "保存",
             "読み込み",
+            "スロット{0}{1}に保存しました",
+            "スロット{0}{1}を読み込みました",
+            "スロット{0}は空です",
             "敵のHP倍率(全体)",
             "敵の攻撃力倍率(全体)",
             "第{0}幕",
@@ -564,6 +599,9 @@ public sealed class SpireScalerConfig : SimpleModConfig
             "Slot {0}",
             "Save",
             "Load",
+            "Saved to slot {0}{1}",
+            "Loaded slot {0}{1}",
+            "Slot {0} is empty",
             "Enemy HP multiplier (all)",
             "Enemy attack multiplier (all)",
             "Act {0}",
@@ -576,6 +614,15 @@ public sealed class SpireScalerConfig : SimpleModConfig
             string.Format(CultureInfo.InvariantCulture, DisplayFormat, s.HpMultiplier.ToString("0.#", CultureInfo.InvariantCulture), s.AttackMultiplier.ToString("0.#", CultureInfo.InvariantCulture));
 
         public string Slot(int slot) => string.Format(SlotFormat, slot);
+
+        public string Saved(int slot, string name) => string.Format(SavedFormat, slot, Quote(name));
+
+        public string Loaded(int slot, string name) => string.Format(LoadedFormat, slot, Quote(name));
+
+        public string Empty(int slot) => string.Format(EmptyFormat, slot);
+
+        private string Quote(string name) =>
+            string.IsNullOrWhiteSpace(name) ? "" : this == Japanese ? $"「{name}」" : $" \"{name}\"";
 
         public string ActTitle(int act) => string.Format(ActFormat, act);
 
