@@ -4,7 +4,7 @@
 
 - 仕様書: [docs/sts2-enemy-multiplier-mod-spec.md](docs/sts2-enemy-multiplier-mod-spec.md)
 
-## 現在の状態: v0.3.0
+## 現在の状態: v0.4.0
 
 敵に HP 倍率・攻撃力倍率を掛ける。幕(Act)ごと・敵の種類(通常敵 / エリート / ボス)ごとにも設定できる。倍率はゲーム内の MOD 設定画面(BaseLib)で変える。動作確認対象: ゲーム v0.111.0。
 
@@ -32,6 +32,8 @@ BaseLib はワークショップの購読先を参照する。別の場所にあ
 - 各倍率はスライダーと数値入力のどちらでも変えられる(0.1 刻み)
 - 詳細設定: オフのとき範囲は 1〜10 倍、オンで 0〜100 倍。オフに戻すと全倍率が 1.0 倍に戻る
 - デフォルトに戻す: 全倍率を 1.0 倍に戻す(詳細設定と幕ごとのオン/オフはそのまま)
+- 戦闘中に倍率を表示する: オンのとき、戦闘画面の上部に「HP×○ / 攻撃×○」(その戦闘に掛かっている倍率)を表示する
+- プリセット: スロット 1〜5。名前を入れて「保存」で今の設定(詳細設定・幕ごとのオン/オフ・全倍率)を保存、「読み込み」で切り替える。同じスロットに保存すると上書き。保存先は `user://SpireScaler/presets.json`(Windows では `%APPDATA%\SlayTheSpire2\SpireScaler\presets.json`)
 
 変更は次の戦闘から反映される。保存先は `user://mod_configs/SpireScaler.cfg`(Windows では `%APPDATA%\SlayTheSpire2\mod_configs\SpireScaler.cfg`)。
 適用結果はゲームログ(`%APPDATA%\SlayTheSpire2\logs\godot.log`)に `[SpireScaler]` で出力される。
