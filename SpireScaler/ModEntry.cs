@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Rooms;
 
 namespace SpireScaler;
 
@@ -27,16 +28,26 @@ public static class ModEntry
         ModConfigRegistry.Register(ModId, new SpireScalerConfig());
         var harmony = new Harmony(HarmonyId);
         harmony.PatchAll(typeof(ModEntry).Assembly);
-        MultiplierSettings s = SpireScalerConfig.Snapshot();
-        Log.Info($"[SpireScaler] Loaded. HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
+        Log.Info($"[SpireScaler] Loaded. Global HP x{SpireScalerConfig.HpMultiplier}, Attack x{SpireScalerConfig.AttackMultiplier}");
     }
 
+    /// <summary>
+    /// Snapshot for the whole combat, keyed by its Act and encounter type, so summoned
+    /// enemies use the encounter's type.
+    /// </summary>
     public static MultiplierSettings SettingsFor(ICombatState combatState)
     {
-        return CombatSettings.GetValue(combatState, _ =>
+        return CombatSettings.GetValue(combatState, cs =>
         {
-            MultiplierSettings s = SpireScalerConfig.Snapshot();
-            Log.Info($"[SpireScaler] New combat: HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
+            int actIndex = cs.RunState?.CurrentActIndex ?? 0;
+            EnemyKind kind = cs.Encounter?.RoomType switch
+            {
+                RoomType.Elite => EnemyKind.Elite,
+                RoomType.Boss => EnemyKind.Boss,
+                _ => EnemyKind.Normal,
+            };
+            MultiplierSettings s = SpireScalerConfig.Snapshot(actIndex, kind);
+            Log.Info($"[SpireScaler] New combat (Act {actIndex + 1}, {kind}): HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
             return s;
         });
     }
