@@ -1,93 +1,70 @@
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Combat;
-using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Nodes.Combat;
-using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace SpireScaler;
 
 /// <summary>
-/// Spec 2.7: a small "HP×n / Attack×n" label in the top bar, just right of the floor and
-/// ascension icons, showing the multipliers applied to the current combat.
-/// Toggled by ShowMultiplierDisplay.
+/// Spec 2.7: a small "HP×n / Attack×n" label just above the local player's health bar,
+/// showing the multipliers applied to the current combat. Toggled by ShowMultiplierDisplay.
+/// The label is a child of the health bar, so it follows it and goes away with the creature node.
 /// </summary>
-[HarmonyPatch(typeof(NCombatUi))]
+[HarmonyPatch(typeof(NCreature), nameof(NCreature._Ready))]
 public static class CombatDisplay
 {
     private const string LabelName = "SpireScalerMultiplierLabel";
-    private const float GapAfterIcons = 28f;
-    private const float LabelWidth = 420f;
 
     [HarmonyPostfix]
-    [HarmonyPatch(nameof(NCombatUi.Activate))]
-    public static void AfterActivate(CombatState state)
+    public static void Postfix(NCreature __instance)
     {
-        NTopBar? topBar = NRun.Instance?.GlobalUi?.TopBar;
-        if (topBar == null)
+        if (!SpireScalerConfig.ShowMultiplierDisplay
+            || __instance.Entity is not { IsPlayer: true } player
+            || !LocalContext.IsMe(player))
         {
             return;
         }
-        Label label = GetOrCreateLabel(topBar);
-        label.Text = SpireScalerConfig.Labels.Current().Display(ModEntry.SettingsFor(state));
-        PlaceAfterIcons(topBar, label);
-        label.Visible = SpireScalerConfig.ShowMultiplierDisplay;
-    }
 
-    [HarmonyPostfix]
-    [HarmonyPatch(nameof(NCombatUi.Deactivate))]
-    public static void AfterDeactivate() => Hide();
-
-    [HarmonyPostfix]
-    [HarmonyPatch(nameof(NCombatUi._ExitTree))]
-    public static void AfterExitTree() => Hide();
-
-    private static void Hide()
-    {
-        if (NRun.Instance?.GlobalUi?.TopBar?.GetNodeOrNull<Label>(LabelName) is { } label)
+        // NCreature's "%HealthBar" is the state display; the bar itself is its own "%HealthBar".
+        Control? stateDisplay = __instance.GetNodeOrNull<Control>("%HealthBar");
+        Control? bar = stateDisplay?.GetNodeOrNull<Control>("%HealthBar") ?? stateDisplay;
+        if (bar == null || bar.GetNodeOrNull(LabelName) != null)
         {
-            label.Visible = false;
+            return;
         }
-    }
 
-    /// <summary>Positions the label from the icons' actual rects, so it follows the HUD layout.</summary>
-    private static void PlaceAfterIcons(NTopBar topBar, Label label)
-    {
-        Rect2? icons = null;
-        foreach (Control? icon in new[] { topBar.RoomIcon, topBar.FloorIcon, topBar.BossIcon, topBar.GetNodeOrNull<Control>("%AscensionIcon") })
-        {
-            if (icon != null && icon.IsVisibleInTree())
-            {
-                Rect2 rect = icon.GetGlobalRect();
-                icons = icons?.Merge(rect) ?? rect;
-            }
-        }
-        Rect2 anchor = icons ?? topBar.Hp.GetGlobalRect();
-        Transform2D toLocal = topBar.GetGlobalTransform().AffineInverse();
-        Vector2 left = toLocal * new Vector2(anchor.End.X + GapAfterIcons, anchor.Position.Y + anchor.Size.Y / 2f);
-        float height = label.GetMinimumSize().Y;
-        label.Position = new Vector2(left.X, left.Y - height / 2f);
-        label.Size = new Vector2(LabelWidth, height);
-    }
-
-    private static Label GetOrCreateLabel(NTopBar topBar)
-    {
-        if (topBar.GetNodeOrNull<Label>(LabelName) is { } existing)
-        {
-            return existing;
-        }
         var label = new Label
         {
             Name = LabelName,
             MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            GrowHorizontal = Control.GrowDirection.Both,
+            AnchorLeft = 0f,
+            AnchorRight = 1f,
+            AnchorTop = 0f,
+            AnchorBottom = 0f,
+            OffsetTop = -30f,
+            OffsetBottom = -4f,
         };
-        label.AddThemeFontSizeOverride("font_size", 28);
+        label.AddThemeFontSizeOverride("font_size", 18);
         label.AddThemeColorOverride("font_color", new Color(1f, 0.93f, 0.8f));
         label.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
-        label.AddThemeConstantOverride("outline_size", 6);
-        topBar.AddChild(label);
-        return label;
+        label.AddThemeConstantOverride("outline_size", 5);
+        bar.AddChild(label);
+        SetText(label, player);
+        if (label.Text == "")
+        {
+            // The player may join the combat state after its node is ready; try again next frame.
+            Callable.From(() => SetText(label, player)).CallDeferred();
+        }
+    }
+
+    private static void SetText(Label label, MegaCrit.Sts2.Core.Entities.Creatures.Creature player)
+    {
+        if (GodotObject.IsInstanceValid(label) && player.CombatState is { } combatState)
+        {
+            label.Text = SpireScalerConfig.Labels.Current().Display(ModEntry.SettingsFor(combatState));
+        }
     }
 }
