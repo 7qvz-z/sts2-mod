@@ -138,23 +138,74 @@ public sealed class SpireScalerConfig : SimpleModConfig
     /// The multipliers for a combat in the given Act (0-based run act index) against the given enemy kind.
     /// Acts beyond the third use the third Act's settings.
     /// </summary>
+    /// In a multiplayer run the host's values frozen at run start are used instead of the local settings.
     public static MultiplierSettings Snapshot(int actIndex, EnemyKind kind)
     {
+        IReadOnlyDictionary<string, string>? values = MultiplayerSync.HostValues;
         int act = Math.Clamp(actIndex + 1, 1, ActCount);
-        if (!IsCustom(act))
+        if (!ReadBool(values, $"Act{act}Custom"))
         {
-            return new MultiplierSettings(ToMultiplier(HpMultiplier), ToMultiplier(AttackMultiplier));
+            return new MultiplierSettings(
+                ToMultiplier(ReadDouble(values, nameof(HpMultiplier))),
+                ToMultiplier(ReadDouble(values, nameof(AttackMultiplier))));
         }
         return new MultiplierSettings(
-            ToMultiplier(GetDouble(CellName(act, kind, hp: true))),
-            ToMultiplier(GetDouble(CellName(act, kind, hp: false))));
+            ToMultiplier(ReadDouble(values, CellName(act, kind, hp: true))),
+            ToMultiplier(ReadDouble(values, CellName(act, kind, hp: false))));
+    }
+
+    /// <summary>The settings that decide the multipliers (not the display toggle), by property name.</summary>
+    public static IEnumerable<PropertyInfo> SettingProperties()
+    {
+        yield return Property(nameof(AdvancedMode));
+        yield return Property(nameof(HpMultiplier));
+        yield return Property(nameof(AttackMultiplier));
+        for (int act = 1; act <= ActCount; act++)
+        {
+            yield return Property($"Act{act}Custom");
+            foreach (EnemyKind kind in Kinds)
+            {
+                yield return Property(CellName(act, kind, hp: true));
+                yield return Property(CellName(act, kind, hp: false));
+            }
+        }
+    }
+
+    /// <summary>Current local settings as invariant strings, for presets and multiplayer sync.</summary>
+    public static Dictionary<string, string> CaptureValues()
+    {
+        var values = new Dictionary<string, string>();
+        foreach (PropertyInfo property in SettingProperties())
+        {
+            values[property.Name] = Convert.ToString(property.GetValue(null), CultureInfo.InvariantCulture) ?? "";
+        }
+        return values;
+    }
+
+    private static bool ReadBool(IReadOnlyDictionary<string, string>? values, string name)
+    {
+        if (values == null)
+        {
+            return (bool)Property(name).GetValue(null)!;
+        }
+        return values.TryGetValue(name, out string? text) && bool.TryParse(text, out bool flag) && flag;
+    }
+
+    private static double ReadDouble(IReadOnlyDictionary<string, string>? values, string name)
+    {
+        if (values == null)
+        {
+            return (double)Property(name).GetValue(null)!;
+        }
+        return values.TryGetValue(name, out string? text)
+            && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double number)
+            ? number
+            : 1.0;
     }
 
     private static string CellName(int act, EnemyKind kind, bool hp) => $"Act{act}{kind}{(hp ? "Hp" : "Attack")}";
 
     private static bool IsCustom(int act) => (bool)Property($"Act{act}Custom").GetValue(null)!;
-
-    private static double GetDouble(string name) => (double)Property(name).GetValue(null)!;
 
     private static decimal ToMultiplier(double value)
     {
@@ -171,6 +222,10 @@ public sealed class SpireScalerConfig : SimpleModConfig
         Labels t = Labels.Current();
 
         optionContainer.AddChild(CreateRawLabelControl(t.Note, 22));
+        if (MultiplayerSync.HostValues != null)
+        {
+            optionContainer.AddChild(CreateRawLabelControl($"[color=#f0c060]{t.MultiplayerNote}[/color]", 22));
+        }
         AddRow(optionContainer, optionContainer, nameof(AdvancedMode), t.Advanced, CreateRawTickboxControl(Property(nameof(AdvancedMode))));
         AddRow(optionContainer, optionContainer, nameof(ShowMultiplierDisplay), t.ShowDisplay, CreateRawTickboxControl(Property(nameof(ShowMultiplierDisplay))));
         AddField(optionContainer, optionContainer, _globalHp, t.GlobalHp);
@@ -226,18 +281,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
     private static string PresetNameProperty(int slot) => $"Preset{slot}Name";
 
     /// <summary>Everything a preset restores: the mode, the per-Act switches and every multiplier.</summary>
-    private IEnumerable<PropertyInfo> PresetProperties()
-    {
-        yield return Property(nameof(AdvancedMode));
-        for (int act = 1; act <= ActCount; act++)
-        {
-            yield return Property($"Act{act}Custom");
-        }
-        foreach (MultiplierField field in _fields)
-        {
-            yield return field.ValueProperty;
-        }
-    }
+    private static IEnumerable<PropertyInfo> PresetProperties() => SettingProperties();
 
     private void AddPresetRow(Control owner, Control container, int slot, Labels t)
     {
@@ -552,6 +596,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
 
     internal sealed record Labels(
         string Note,
+        string MultiplayerNote,
         string Advanced,
         string ShowDisplay,
         string DisplayFormat,
@@ -572,6 +617,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
     {
         private static readonly Labels Japanese = new(
             "倍率の変更は次の戦闘から反映されます。幕ごとの設定をオンにした幕では、全体の倍率の代わりにその幕の値を使います。",
+            "マルチプレイ中は、ホストがランを始めたときの設定が全員に使われます。ここでの変更は次のランから反映されます。",
             "詳細設定(0〜100倍)",
             "戦闘中に倍率を表示する",
             "HP×{0} / 攻撃×{1}",
@@ -592,6 +638,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
 
         private static readonly Labels English = new(
             "Changes apply from the next combat. An Act with its own settings turned on uses them instead of the global multipliers.",
+            "In multiplayer, everyone uses the host's settings from when the run started. Changes here apply from the next run.",
             "Advanced (0-100x range)",
             "Show multipliers during combat",
             "HP×{0} / ATK×{1}",
