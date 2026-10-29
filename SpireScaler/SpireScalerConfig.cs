@@ -7,6 +7,7 @@ using BaseLib.Config;
 using BaseLib.Config.UI;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
+using MegaCrit.Sts2.Core.Logging;
 
 namespace SpireScaler;
 
@@ -32,10 +33,14 @@ public sealed class SpireScalerConfig : SimpleModConfig
     public const double SliderStep = 0.1;
     public const int ActCount = 3;
     private const string SliderFormat = "x{0:0.#}";
+    private const string PresetName = @"[\p{L}\p{N}_\- ]*";
     private const string Number = @"[0-9]{0,3}(\.[0-9]?)?";
 
     // Restore Defaults resets the multipliers only (spec 2.6), not the mode or the per-Act switches.
     [ConfigIgnoreRestoreDefaults] public static bool AdvancedMode { get; set; }
+
+    // Spec 2.7: show "HP×n / Attack×n" during combat.
+    [ConfigIgnoreRestoreDefaults] public static bool ShowMultiplierDisplay { get; set; } = true;
 
     [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = SliderFormat)] public static double HpMultiplier { get; set; } = 1.0;
     [ConfigSlider(NormalMin, NormalMax, SliderStep, Format = SliderFormat)] public static double AttackMultiplier { get; set; } = 1.0;
@@ -86,6 +91,13 @@ public sealed class SpireScalerConfig : SimpleModConfig
     [ConfigIgnore, ConfigTextInput(Number, MaxLength = 5)] public static string Act3BossHpInput { get; set; } = "1";
     [ConfigIgnore, ConfigTextInput(Number, MaxLength = 5)] public static string Act3BossAttackInput { get; set; } = "1";
 
+    // Names typed into the preset slots; the presets themselves live in PresetStore.
+    [ConfigIgnore, ConfigTextInput(PresetName, MaxLength = 20)] public static string Preset1Name { get; set; } = "";
+    [ConfigIgnore, ConfigTextInput(PresetName, MaxLength = 20)] public static string Preset2Name { get; set; } = "";
+    [ConfigIgnore, ConfigTextInput(PresetName, MaxLength = 20)] public static string Preset3Name { get; set; } = "";
+    [ConfigIgnore, ConfigTextInput(PresetName, MaxLength = 20)] public static string Preset4Name { get; set; } = "";
+    [ConfigIgnore, ConfigTextInput(PresetName, MaxLength = 20)] public static string Preset5Name { get; set; } = "";
+
     public static double RangeMin => AdvancedMode ? AdvancedMin : NormalMin;
     public static double RangeMax => AdvancedMode ? AdvancedMax : NormalMax;
 
@@ -97,6 +109,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
     private readonly bool[] _lastCustom = new bool[ActCount + 1];
     private bool _lastAdvanced;
     private bool _syncing;
+    private Label? _presetNotice;
 
     public SpireScalerConfig()
     {
@@ -114,6 +127,10 @@ public sealed class SpireScalerConfig : SimpleModConfig
         _lastAdvanced = AdvancedMode;
         ClampToRange();
         _fields.ForEach(f => f.SyncTextFromValue());
+        for (int slot = 1; slot <= PresetStore.SlotCount; slot++)
+        {
+            Property(PresetNameProperty(slot)).SetValue(null, PresetStore.GetName(slot) ?? "");
+        }
         ConfigChanged += (_, _) => OnConfigChanged();
     }
 
@@ -155,6 +172,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
 
         optionContainer.AddChild(CreateRawLabelControl(t.Note, 22));
         AddRow(optionContainer, optionContainer, nameof(AdvancedMode), t.Advanced, CreateRawTickboxControl(Property(nameof(AdvancedMode))));
+        AddRow(optionContainer, optionContainer, nameof(ShowMultiplierDisplay), t.ShowDisplay, CreateRawTickboxControl(Property(nameof(ShowMultiplierDisplay))));
         AddField(optionContainer, optionContainer, _globalHp, t.GlobalHp);
         AddField(optionContainer, optionContainer, _globalAttack, t.GlobalAttack);
 
@@ -172,6 +190,24 @@ public sealed class SpireScalerConfig : SimpleModConfig
             }
         }
 
+        NConfigCollapsibleSection presets = CreateCollapsibleSection(t.Presets, alignToTop: false, collapsedByDefault: true);
+        optionContainer.AddChild(presets);
+        for (int slot = 1; slot <= PresetStore.SlotCount; slot++)
+        {
+            AddPresetRow(optionContainer, presets.ContentContainer, slot, t);
+        }
+        _presetNotice = new Label
+        {
+            Name = "PresetNotice",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            CustomMinimumSize = new Vector2(0f, 48f),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Modulate = Colors.Transparent,
+        };
+        _presetNotice.AddThemeFontSizeOverride("font_size", 26);
+        _presetNotice.AddThemeColorOverride("font_color", new Color(0.55f, 0.9f, 0.55f));
+        presets.ContentContainer.AddChild(_presetNotice);
+
         AddRestoreDefaultsButton(optionContainer);
         SetupFocusNeighbors(optionContainer);
         UpdateVisibility();
@@ -185,6 +221,114 @@ public sealed class SpireScalerConfig : SimpleModConfig
             ClampToRange();
             _fields.ForEach(f => f.SyncAll());
         });
+    }
+
+    private static string PresetNameProperty(int slot) => $"Preset{slot}Name";
+
+    /// <summary>Everything a preset restores: the mode, the per-Act switches and every multiplier.</summary>
+    private IEnumerable<PropertyInfo> PresetProperties()
+    {
+        yield return Property(nameof(AdvancedMode));
+        for (int act = 1; act <= ActCount; act++)
+        {
+            yield return Property($"Act{act}Custom");
+        }
+        foreach (MultiplierField field in _fields)
+        {
+            yield return field.ValueProperty;
+        }
+    }
+
+    private void AddPresetRow(Control owner, Control container, int slot, Labels t)
+    {
+        NConfigLineEdit name = CreateRawLineEditControl(Property(PresetNameProperty(slot)));
+        name.CustomMinimumSize = new Vector2(260f, 64f);
+        NConfigButton save = CreateRawButtonControl(t.Save, () => SavePreset(slot));
+        NConfigButton load = CreateRawButtonControl(t.Load, () => LoadPreset(slot));
+        save.CustomMinimumSize = new Vector2(150f, 64f);
+        load.CustomMinimumSize = new Vector2(150f, 64f);
+
+        var controls = new HBoxContainer
+        {
+            Name = $"Preset{slot}Controls",
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkBegin,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        controls.AddThemeConstantOverride("separation", 16);
+        controls.AddChild(name);
+        controls.AddChild(save);
+        controls.AddChild(load);
+        AddRow(owner, container, $"Preset{slot}", t.Slot(slot), controls);
+    }
+
+    private void SavePreset(int slot)
+    {
+        var values = new Dictionary<string, string>();
+        foreach (PropertyInfo property in PresetProperties())
+        {
+            values[property.Name] = Convert.ToString(property.GetValue(null), CultureInfo.InvariantCulture) ?? "";
+        }
+        string name = (string?)Property(PresetNameProperty(slot)).GetValue(null) ?? "";
+        PresetStore.Set(slot, name, values);
+        ShowPresetNotice(Labels.Current().Saved(slot, name));
+        Log.Info($"[SpireScaler] Saved preset {slot} \"{name}\"");
+    }
+
+    private void LoadPreset(int slot)
+    {
+        IReadOnlyDictionary<string, string>? values = PresetStore.Get(slot);
+        if (values == null)
+        {
+            ShowPresetNotice(Labels.Current().Empty(slot));
+            return;
+        }
+        RunSync(() =>
+        {
+            foreach (PropertyInfo property in PresetProperties())
+            {
+                if (!values.TryGetValue(property.Name, out string? text))
+                {
+                    continue;
+                }
+                if (property.PropertyType == typeof(bool) && bool.TryParse(text, out bool flag))
+                {
+                    property.SetValue(null, flag);
+                }
+                else if (property.PropertyType == typeof(double)
+                    && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double number))
+                {
+                    property.SetValue(null, number);
+                }
+            }
+            _lastAdvanced = AdvancedMode;
+            for (int act = 1; act <= ActCount; act++)
+            {
+                _lastCustom[act] = IsCustom(act);
+            }
+            _fields.ForEach(f => f.ApplyRange());
+            ClampToRange();
+            ConfigReloaded();
+            _fields.ForEach(f => f.SyncAll());
+            UpdateVisibility();
+        });
+        Save();
+        Log.Info($"[SpireScaler] Loaded preset {slot} \"{PresetStore.GetName(slot)}\"");
+        ShowPresetNotice(Labels.Current().Loaded(slot, PresetStore.GetName(slot) ?? ""));
+    }
+
+    /// <summary>Shows a short message under the preset slots, then fades it out.</summary>
+    private void ShowPresetNotice(string text)
+    {
+        if (_presetNotice == null || !GodotObject.IsInstanceValid(_presetNotice))
+        {
+            return;
+        }
+        _presetNotice.Text = text;
+        _presetNotice.Modulate = Colors.White;
+        Tween tween = _presetNotice.CreateTween();
+        tween.TweenInterval(2.5);
+        tween.TweenProperty(_presetNotice, "modulate:a", 0.0, 0.6);
     }
 
     private MultiplierField Field(string valueName) => _fields.First(f => f.ValueProperty.Name == valueName);
@@ -406,9 +550,18 @@ public sealed class SpireScalerConfig : SimpleModConfig
         }
     }
 
-    private sealed record Labels(
+    internal sealed record Labels(
         string Note,
         string Advanced,
+        string ShowDisplay,
+        string DisplayFormat,
+        string Presets,
+        string SlotFormat,
+        string Save,
+        string Load,
+        string SavedFormat,
+        string LoadedFormat,
+        string EmptyFormat,
         string GlobalHp,
         string GlobalAttack,
         string ActFormat,
@@ -420,6 +573,15 @@ public sealed class SpireScalerConfig : SimpleModConfig
         private static readonly Labels Japanese = new(
             "倍率の変更は次の戦闘から反映されます。幕ごとの設定をオンにした幕では、全体の倍率の代わりにその幕の値を使います。",
             "詳細設定(0〜100倍)",
+            "戦闘中に倍率を表示する",
+            "HP×{0} / 攻撃×{1}",
+            "プリセット",
+            "スロット{0}",
+            "保存",
+            "読み込み",
+            "スロット{0}{1}に保存しました",
+            "スロット{0}{1}を読み込みました",
+            "スロット{0}は空です",
             "敵のHP倍率(全体)",
             "敵の攻撃力倍率(全体)",
             "第{0}幕",
@@ -431,6 +593,15 @@ public sealed class SpireScalerConfig : SimpleModConfig
         private static readonly Labels English = new(
             "Changes apply from the next combat. An Act with its own settings turned on uses them instead of the global multipliers.",
             "Advanced (0-100x range)",
+            "Show multipliers during combat",
+            "HP×{0} / ATK×{1}",
+            "Presets",
+            "Slot {0}",
+            "Save",
+            "Load",
+            "Saved to slot {0}{1}",
+            "Loaded slot {0}{1}",
+            "Slot {0} is empty",
             "Enemy HP multiplier (all)",
             "Enemy attack multiplier (all)",
             "Act {0}",
@@ -438,6 +609,20 @@ public sealed class SpireScalerConfig : SimpleModConfig
             new[] { "Normal", "Elite", "Boss" },
             "HP",
             "attack");
+
+        public string Display(MultiplierSettings s) =>
+            string.Format(CultureInfo.InvariantCulture, DisplayFormat, s.HpMultiplier.ToString("0.#", CultureInfo.InvariantCulture), s.AttackMultiplier.ToString("0.#", CultureInfo.InvariantCulture));
+
+        public string Slot(int slot) => string.Format(SlotFormat, slot);
+
+        public string Saved(int slot, string name) => string.Format(SavedFormat, slot, Quote(name));
+
+        public string Loaded(int slot, string name) => string.Format(LoadedFormat, slot, Quote(name));
+
+        public string Empty(int slot) => string.Format(EmptyFormat, slot);
+
+        private string Quote(string name) =>
+            string.IsNullOrWhiteSpace(name) ? "" : this == Japanese ? $"「{name}」" : $" \"{name}\"";
 
         public string ActTitle(int act) => string.Format(ActFormat, act);
 
