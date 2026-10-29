@@ -7,6 +7,7 @@ using BaseLib.Config;
 using BaseLib.Config.UI;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
+using MegaCrit.Sts2.Core.Localization.Fonts;
 using MegaCrit.Sts2.Core.Logging;
 
 namespace SpireScaler;
@@ -259,6 +260,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
             MouseFilter = Control.MouseFilterEnum.Ignore,
             Modulate = Colors.Transparent,
         };
+        Labels.ApplyFont(_presetNotice);
         _presetNotice.AddThemeFontSizeOverride("font_size", 26);
         _presetNotice.AddThemeColorOverride("font_color", new Color(0.55f, 0.9f, 0.55f));
         presets.ContentContainer.AddChild(_presetNotice);
@@ -613,7 +615,8 @@ public sealed class SpireScalerConfig : SimpleModConfig
         string ActCustomFormat,
         string[] KindNames,
         string Hp,
-        string Attack)
+        string Attack,
+        string QuoteFormat)
     {
         private static readonly Labels Japanese = new(
             "倍率の変更は次の戦闘から反映されます。幕ごとの設定をオンにした幕では、全体の倍率の代わりにその幕の値を使います。",
@@ -634,7 +637,8 @@ public sealed class SpireScalerConfig : SimpleModConfig
             "第{0}幕を個別に設定する",
             new[] { "通常敵", "エリート", "ボス" },
             "HP倍率",
-            "攻撃力倍率");
+            "攻撃力倍率",
+            "「{0}」");
 
         private static readonly Labels English = new(
             "Changes apply from the next combat. An Act with its own settings turned on uses them instead of the global multipliers.",
@@ -655,7 +659,52 @@ public sealed class SpireScalerConfig : SimpleModConfig
             "Use custom multipliers in Act {0}",
             new[] { "Normal", "Elite", "Boss" },
             "HP",
-            "attack");
+            "attack",
+            " \"{0}\"");
+
+        private static readonly Labels SimplifiedChinese = new(
+            "倍率的更改将从下一场战斗开始生效。开启单独设置的幕会使用该幕的数值，而不是全局倍率。",
+            "多人游戏中，所有人都使用房主开始本局时的设置。此处的更改将从下一局开始生效。",
+            "高级设置（0-100倍）",
+            "战斗中显示倍率",
+            "生命×{0} / 攻击×{1}",
+            "预设",
+            "槽位{0}",
+            "保存",
+            "读取",
+            "已保存到槽位{0}{1}",
+            "已读取槽位{0}{1}",
+            "槽位{0}为空",
+            "敌人生命倍率（全局）",
+            "敌人攻击倍率（全局）",
+            "第{0}幕",
+            "单独设置第{0}幕",
+            new[] { "普通敌人", "精英", "首领" },
+            "生命倍率",
+            "攻击倍率",
+            "“{0}”");
+
+        private static readonly Labels Korean = new(
+            "배율 변경은 다음 전투부터 적용됩니다. 개별 설정을 켠 막에서는 전체 배율 대신 그 막의 값을 사용합니다.",
+            "멀티플레이 중에는 호스트가 런을 시작할 때의 설정이 모두에게 적용됩니다. 여기서 바꾼 내용은 다음 런부터 적용됩니다.",
+            "고급 설정 (0~100배)",
+            "전투 중 배율 표시",
+            "HP×{0} / 공격×{1}",
+            "프리셋",
+            "슬롯 {0}",
+            "저장",
+            "불러오기",
+            "슬롯 {0}{1}에 저장했습니다",
+            "슬롯 {0}{1}을(를) 불러왔습니다",
+            "슬롯 {0}은(는) 비어 있습니다",
+            "적 HP 배율 (전체)",
+            "적 공격력 배율 (전체)",
+            "{0}막",
+            "{0}막 개별 설정",
+            new[] { "일반 적", "엘리트", "보스" },
+            "HP 배율",
+            "공격력 배율",
+            " '{0}'");
 
         public string Display(MultiplierSettings s) =>
             string.Format(CultureInfo.InvariantCulture, DisplayFormat, s.HpMultiplier.ToString("0.#", CultureInfo.InvariantCulture), s.AttackMultiplier.ToString("0.#", CultureInfo.InvariantCulture));
@@ -668,8 +717,7 @@ public sealed class SpireScalerConfig : SimpleModConfig
 
         public string Empty(int slot) => string.Format(EmptyFormat, slot);
 
-        private string Quote(string name) =>
-            string.IsNullOrWhiteSpace(name) ? "" : this == Japanese ? $"「{name}」" : $" \"{name}\"";
+        private string Quote(string name) => string.IsNullOrWhiteSpace(name) ? "" : string.Format(QuoteFormat, name);
 
         public string ActTitle(int act) => string.Format(ActFormat, act);
 
@@ -677,7 +725,23 @@ public sealed class SpireScalerConfig : SimpleModConfig
 
         public string Cell(EnemyKind kind, bool hp) => $"{KindNames[(int)kind]} {(hp ? Hp : Attack)}";
 
-        // TODO(step 6): Simplified Chinese and Korean; move to localization files.
-        public static Labels Current() => LocManager.Instance?.Language == "jpn" ? Japanese : English;
+        /// <summary>Labels for the game's current language; anything other than these four falls back to English.</summary>
+        public static Labels Current() => LocManager.Instance?.Language switch
+        {
+            "jpn" => Japanese,
+            "zhs" => SimplifiedChinese,
+            "kor" => Korean,
+            _ => English,
+        };
+
+        /// <summary>Gives a plain Godot label the game's font for CJK languages, as the game's own controls do.</summary>
+        public static void ApplyFont(Control control)
+        {
+            string? language = LocManager.Instance?.Language;
+            if (language != null && FontManager.GetSubstituteFont(language, FontType.Regular) is { } font)
+            {
+                control.AddThemeFontOverride("font", font);
+            }
+        }
     }
 }

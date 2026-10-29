@@ -46,6 +46,7 @@ public static class CombatDisplay
             OffsetTop = -30f,
             OffsetBottom = -4f,
         };
+        SpireScalerConfig.Labels.ApplyFont(label);
         label.AddThemeFontSizeOverride("font_size", 18);
         label.AddThemeColorOverride("font_color", new Color(1f, 0.93f, 0.8f));
         label.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
