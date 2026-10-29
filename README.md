@@ -8,6 +8,8 @@
 
 敵に HP 倍率・攻撃力倍率を掛ける。幕(Act)ごと・敵の種類(通常敵 / エリート / ボス)ごとにも設定できる。倍率はゲーム内の MOD 設定画面(BaseLib)で変える。動作確認対象: ゲーム v0.111.0。
 
+Steam ワークショップ: https://steamcommunity.com/sharedfiles/filedetails/?id=3829540978
+
 前提 MOD: [BaseLib](https://steamcommunity.com/sharedfiles/filedetails/?id=3737335127) 3.4.7 以上。
 
 ## ビルドとインストール
@@ -44,3 +46,15 @@ BaseLib はワークショップの購読先を参照する。別の場所にあ
 - 使う倍率はホストの設定。ホストがランを始めた時点の設定で固定され、参加者に送られる(参加者自身の設定は使わない)。ラン中に設定を変えても、そのランには反映されない
 - ホストは固定した設定を `user://SpireScaler/multiplayer_run.json` に保存するので、保存したマルチプレイのランを続きから遊んでも同じ値になる
 - シングルプレイは従来どおり、変更が次の戦闘から反映される
+
+## ワークショップへのアップロード
+
+公式ツール [megacrit/sts2-mod-uploader](https://github.com/megacrit/sts2-mod-uploader) を使う。`workshop/` に公開用のファイルを置いている。
+
+- `workshop.json`: タイトル・説明文(Steam の BBCode)・公開範囲・前提 MOD(BaseLib: 3737335127)
+- `image.png`: アイコン(1MB 未満)
+- `description.md`: 説明文の元(4言語)
+- `upload.bat`: アップロード用のバッチ(ツールの場所と作業フォルダはこの PC のパスのまま)
+- `mod_id.txt`: ワークショップのアイテム ID(3829540978)。更新時はこれがあるので同じアイテムに上書きされる
+
+更新の手順: ツールの作業フォルダ(`workshop.json`・`image.png`・`mod_id.txt` と、`content/` に `SpireScaler.dll`・`SpireScaler.json`)を用意し、`workshop.json` の `changeNote` を書き換えて `ModUploader.exe upload -w <作業フォルダ>` を実行する。
