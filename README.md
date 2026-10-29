@@ -51,7 +51,7 @@ BaseLib はワークショップの購読先を参照する。別の場所にあ
 
 公式ツール [megacrit/sts2-mod-uploader](https://github.com/megacrit/sts2-mod-uploader) を使う。`workshop/` に公開用のファイルを置いている。
 
-- `workshop.json`: タイトル・説明文(Steam の BBCode)・公開範囲・前提 MOD(BaseLib: 3737335127)
+- `workshop.json`: タイトル・説明文(Steam の BBCode)・公開範囲(`public`。公開済みなので private に戻さないこと)・前提 MOD(BaseLib: 3737335127)
 - `image.png`: アイコン(1MB 未満)
 - `description.md`: 説明文の元(4言語)
 - `upload.bat`: アップロード用のバッチ(ツールの場所と作業フォルダはこの PC のパスのまま)
