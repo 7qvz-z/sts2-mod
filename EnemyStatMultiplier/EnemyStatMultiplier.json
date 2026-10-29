@@ -1,0 +1,11 @@
+{
+  "id": "EnemyStatMultiplier",
+  "name": "Enemy Stat Multiplier",
+  "author": "7qvz-z",
+  "description": "Multiplies enemy HP and attack damage. Edit user://EnemyStatMultiplier/config.cfg to change the multipliers.",
+  "version": "0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}
