@@ -7,7 +7,7 @@ using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.ValueProps;
 
-namespace EnemyStatMultiplier;
+namespace EnemyScaler;
 
 /// <summary>
 /// Enemy HP. CreateCreature is used for initial enemies and for summons/splits (CreatureCmd.Add),
@@ -44,7 +44,7 @@ public static class CreateCreaturePatch
         decimal newCurrent = Math.Clamp(ModEntry.Scale(oldCurrent, s.HpMultiplier), 1m, newMax);
         __result.SetMaxHpInternal(newMax);
         __result.SetCurrentHpInternal(newCurrent);
-        Log.Info($"[EnemyStatMultiplier] {__result.LogName}: HP {oldCurrent}/{oldMax} -> {__result.CurrentHp}/{__result.MaxHp} (x{s.HpMultiplier})");
+        Log.Info($"[EnemyScaler] {__result.LogName}: HP {oldCurrent}/{oldMax} -> {__result.CurrentHp}/{__result.MaxHp} (x{s.HpMultiplier})");
     }
 }
 
@@ -79,7 +79,7 @@ public static class ModifyDamagePatch
         if (!entry.Equals(_lastLogged))
         {
             _lastLogged = entry;
-            Log.Info($"[EnemyStatMultiplier] {dealer.LogName}: attack {before} -> {__result} (x{s.AttackMultiplier})");
+            Log.Info($"[EnemyScaler] {dealer.LogName}: attack {before} -> {__result} (x{s.AttackMultiplier})");
         }
     }
 }
@@ -99,7 +99,7 @@ public static class ModifyBlockPatch
         MultiplierSettings? s = ModEntry.SettingsFor(target);
         if (s != null && s.HpMultiplier == 0m && __result != 0m)
         {
-            Log.Info($"[EnemyStatMultiplier] {target.LogName}: block {__result} -> 0 (HP x0)");
+            Log.Info($"[EnemyScaler] {target.LogName}: block {__result} -> 0 (HP x0)");
             __result = 0m;
         }
     }

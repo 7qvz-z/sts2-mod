@@ -2,7 +2,7 @@ using System;
 using Godot;
 using MegaCrit.Sts2.Core.Logging;
 
-namespace EnemyStatMultiplier;
+namespace EnemyScaler;
 
 /// <summary>Multipliers in effect for one combat.</summary>
 public sealed record MultiplierSettings(decimal HpMultiplier, decimal AttackMultiplier)
@@ -11,12 +11,12 @@ public sealed record MultiplierSettings(decimal HpMultiplier, decimal AttackMult
 }
 
 /// <summary>
-/// Reads multipliers from user://EnemyStatMultiplier/config.cfg (Godot ConfigFile format).
+/// Reads multipliers from user://EnemyScaler/config.cfg (Godot ConfigFile format).
 /// Kept out of mods/ because every .json there is parsed as a mod manifest.
 /// </summary>
 public static class ModConfig
 {
-    public const string Dir = "user://EnemyStatMultiplier";
+    public const string Dir = "user://EnemyScaler";
     public const string Path = Dir + "/config.cfg";
     private const string Section = "multipliers";
     private const decimal Min = 0m;
@@ -36,7 +36,7 @@ public static class ModConfig
             Error err = cfg.Load(Path);
             if (err != Error.Ok)
             {
-                Log.Warn($"[EnemyStatMultiplier] Failed to load {Path} ({err}); using 1.0x");
+                Log.Warn($"[EnemyScaler] Failed to load {Path} ({err}); using 1.0x");
                 return MultiplierSettings.Default;
             }
 
@@ -46,7 +46,7 @@ public static class ModConfig
         }
         catch (Exception e)
         {
-            Log.Error($"[EnemyStatMultiplier] Error reading config: {e}");
+            Log.Error($"[EnemyScaler] Error reading config: {e}");
             return MultiplierSettings.Default;
         }
     }
@@ -69,11 +69,11 @@ public static class ModConfig
         Error err = cfg.Save(Path);
         if (err == Error.Ok)
         {
-            Log.Info($"[EnemyStatMultiplier] Created default config at {ProjectSettings.GlobalizePath(Path)}");
+            Log.Info($"[EnemyScaler] Created default config at {ProjectSettings.GlobalizePath(Path)}");
         }
         else
         {
-            Log.Warn($"[EnemyStatMultiplier] Could not create {Path} ({err})");
+            Log.Warn($"[EnemyScaler] Could not create {Path} ({err})");
         }
     }
 }

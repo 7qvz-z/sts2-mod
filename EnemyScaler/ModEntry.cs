@@ -6,12 +6,12 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Modding;
 
-namespace EnemyStatMultiplier;
+namespace EnemyScaler;
 
 [ModInitializer(nameof(Init))]
 public static class ModEntry
 {
-    public const string HarmonyId = "com.7qvz-z.EnemyStatMultiplier";
+    public const string HarmonyId = "com.7qvz-z.EnemyScaler";
 
     // One settings snapshot per combat, taken when its first creature is created,
     // so config edits apply from the next combat only.
@@ -22,7 +22,7 @@ public static class ModEntry
         var harmony = new Harmony(HarmonyId);
         harmony.PatchAll(typeof(ModEntry).Assembly);
         MultiplierSettings s = ModConfig.Load();
-        Log.Info($"[EnemyStatMultiplier] Loaded. HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
+        Log.Info($"[EnemyScaler] Loaded. HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
     }
 
     public static MultiplierSettings SettingsFor(ICombatState combatState)
@@ -30,7 +30,7 @@ public static class ModEntry
         return CombatSettings.GetValue(combatState, _ =>
         {
             MultiplierSettings s = ModConfig.Load();
-            Log.Info($"[EnemyStatMultiplier] New combat: HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
+            Log.Info($"[EnemyScaler] New combat: HP x{s.HpMultiplier}, Attack x{s.AttackMultiplier}");
             return s;
         });
     }

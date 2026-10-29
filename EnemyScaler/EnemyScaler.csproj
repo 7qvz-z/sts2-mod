@@ -4,8 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>EnemyStatMultiplier</AssemblyName>
-    <RootNamespace>EnemyStatMultiplier</RootNamespace>
+    <AssemblyName>EnemyScaler</AssemblyName>
+    <RootNamespace>EnemyScaler</RootNamespace>
     <Version>0.1.0</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="EnemyStatMultiplier.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="EnemyScaler.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <Target Name="InstallMod" AfterTargets="Build" Condition="'$(InstallToGame)' == 'true'">
